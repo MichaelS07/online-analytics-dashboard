@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Funnel Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #E1F3FF;
+            color: #003F5C;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .kpi-card {
+            border-left: 5px solid #6B9DB3;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .select-group label {
+            font-weight: 600;
+            color: #003F5C;
+            margin-right: 0.5rem;
+        }
+        .select-group select {
+            padding: 0.5rem;
+            border: 1px solid #A7D1E3;
+            border-radius: 0.25rem;
+            background-color: #fff;
+            color: #003F5C;
+            cursor: pointer;
+        }
+        .funnel-step-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #E1F3FF;
+        }
+        .funnel-step-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+    <div class="container mx-auto p-4 sm:p-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Interactive Funnel Dashboard</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">Upload your CSV data to visualize your conversion funnel and identify drop-off points.</p>
+        </header>
+
+        <section id="data-input" class="card">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                <label for="csv-upload" class="block text-xl font-semibold mb-2 md:mb-0 text-gray-900">Upload Your Funnel Data (CSV)</label>
+                <input type="file" id="csv-upload" accept=".csv" class="cursor-pointer text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-[#A7D1E3] file:text-[#003F5C]
+                    hover:file:bg-[#6B9DB3]">
+            </div>
+            <p id="file-status" class="text-sm text-gray-500">Please upload a CSV file with columns: `month`, `sessions`, `Sessions with cart additions`, `Sessions that reached checkout`, `Sessions that completed checkout`, `Conversion rate`.</p>
+        </section>
+
+        <section id="dashboard-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
+                <h2 class="text-3xl font-bold text-gray-900">Key Metrics Overview</h2>
+                <div class="flex space-x-4">
+                    <div class="select-group">
+                        <label for="year-select">Select Year:</label>
+                        <select id="year-select"></select>
+                    </div>
+                    <div class="select-group">
+                        <label for="month-select">Select Month:</label>
+                        <select id="month-select"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="card kpi-card">
+                    <h3 class="text-xl font-semibold text-[#366E8A]">Sessions</h3>
+                    <p id="kpi-sessions" class="text-3xl font-bold mt-2">0</p>
+                    <div class="flex flex-col space-y-1 text-sm mt-2">
+                        <span id="trend-mom-sessions" class="flex items-center font-bold"></span>
+                        <span id="trend-yoy-sessions" class="flex items-center font-bold"></span>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <h3 class="text-xl font-semibold text-[#366E8A]">Checkouts Completed</h3>
+                    <p id="kpi-checkouts" class="text-3xl font-bold mt-2">0</p>
+                    <div class="flex flex-col space-y-1 text-sm mt-2">
+                        <span id="trend-mom-checkouts" class="flex items-center font-bold"></span>
+                        <span id="trend-yoy-checkouts" class="flex items-center font-bold"></span>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <h3 class="text-xl font-semibold text-[#366E8A]">Conversion Rate</h3>
+                    <p id="kpi-conversion-rate" class="text-3xl font-bold mt-2">0%</p>
+                    <div class="flex flex-col space-y-1 text-sm mt-2">
+                        <span id="trend-mom-conversion-rate" class="flex items-center font-bold"></span>
+                        <span id="trend-yoy-conversion-rate" class="flex items-center font-bold"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="card">
+                    <h3 id="funnel-chart-title" class="text-xl font-semibold text-center mb-4 text-gray-900">Conversion Funnel Breakdown</h3>
+                    <div class="chart-container">
+                        <canvas id="funnelChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 id="time-chart-title" class="text-xl font-semibold text-center mb-4 text-gray-900">Conversion Rate Over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="timeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">Funnel Step Breakdown</h3>
+                    <div class="flex space-x-8">
+                        <p id="current-year-header" class="text-lg font-bold text-gray-700"></p>
+                        <p id="prior-year-header" class="text-lg font-bold text-gray-700"></p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="funnel-step-item">
+                        <p class="text-lg text-gray-600">Sessions → Sessions with cart additions:</p>
+                        <div class="flex space-x-8">
+                            <p id="step-sessions-to-cart" class="text-lg font-bold text-[#366E8A] w-24 text-right">-</p>
+                            <p id="step-sessions-to-cart-prior-year" class="text-lg text-gray-500 w-24 text-right">-</p>
+                        </div>
+                    </div>
+                    <div class="funnel-step-item">
+                        <p class="text-lg text-gray-600">Sessions with cart additions → Sessions that reached checkout:</p>
+                        <div class="flex space-x-8">
+                            <p id="step-cart-to-checkout" class="text-lg font-bold text-[#366E8A] w-24 text-right">-</p>
+                            <p id="step-cart-to-checkout-prior-year" class="text-lg text-gray-500 w-24 text-right">-</p>
+                        </div>
+                    </div>
+                    <div class="funnel-step-item">
+                        <p class="text-lg text-gray-600">Sessions that reached checkout → Sessions that completed checkout:</p>
+                        <div class="flex space-x-8">
+                            <p id="step-checkout-to-purchase" class="text-lg font-bold text-[#366E8A] w-24 text-right">-</p>
+                            <p id="step-checkout-to-purchase-prior-year" class="text-lg text-gray-500 w-24 text-right">-</p>
+                        </div>
+                    </div>
+                    <div class="funnel-step-item mt-4">
+                        <p class="text-lg font-bold text-gray-800">Overall Conversion Rate:</p>
+                        <div class="flex space-x-8">
+                            <p id="conversion-rate-current-year" class="text-lg font-bold text-[#366E8A] w-24 text-right">-</p>
+                            <p id="conversion-rate-prior-year" class="text-lg text-gray-500 w-24 text-right">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+    <script>
+        const brilliantBlues = ['#003F5C', '#366E8A', '#6B9DB3', '#A7D1E3', '#E1F3FF'];
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        let rawData = [];
+        let groupedData = {}; // { year: { monthIndex: dataObject } }
+        let funnelChart, timeChart;
+
+        const fileInput = document.getElementById('csv-upload');
+        const fileStatus = document.getElementById('file-status');
+        const dashboardContent = document.getElementById('dashboard-content');
+        const yearSelect = document.getElementById('year-select');
+        const monthSelect = document.getElementById('month-select');
+        
+        function wrapLabel(label, maxWidth) {
+            const words = label.split(' ');
+            let line = '';
+            const lines = [];
+            for (let i = 0; i < words.length; i++) {
+                const testLine = line + words[i] + ' ';
+                if (testLine.length > maxWidth && i > 0) {
+                    lines.push(line.trim());
+                    line = words[i] + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line.trim());
+            return lines;
+        }
+
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            }
+            return label;
+        };
+
+        const processCSV = (text) => {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim());
+                return headers.reduce((obj, header, index) => {
+                    const key = header.toLowerCase().replace(/ /g, '_');
+                    obj[key] = isNaN(values[index]) ? values[index] : parseFloat(values[index]);
+                    return obj;
+                }, {});
+            });
+            return data;
+        };
+        
+        const groupDataByYearAndMonth = (data) => {
+            const grouped = {};
+            data.forEach(item => {
+                const [day, month, year] = item.month.split('/').map(Number);
+                if (!grouped[year]) {
+                    grouped[year] = {};
+                }
+                grouped[year][month - 1] = item;
+            });
+            return grouped;
+        };
+
+        const populateDropdowns = (groupedData) => {
+            yearSelect.innerHTML = '';
+            monthSelect.innerHTML = '';
+            const years = Object.keys(groupedData).sort().reverse();
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            });
+            
+            const selectedYear = yearSelect.value;
+            if (selectedYear) {
+                const months = Object.keys(groupedData[selectedYear]).sort((a, b) => a - b);
+                months.forEach(monthIndex => {
+                    const option = document.createElement('option');
+                    option.value = monthIndex;
+                    option.textContent = monthNames[monthIndex];
+                    monthSelect.appendChild(option);
+                });
+            }
+        };
+        
+        const getTrendValue = (currentValue, previousValue) => {
+            if (previousValue === 0) return { text: 'New Data', color: '#6B9DB3' };
+            const change = (currentValue - previousValue) / previousValue;
+            const sign = change >= 0 ? '▲' : '▼';
+            const color = change >= 0 ? 'text-green-500' : 'text-red-500';
+            return { text: `${sign} ${(Math.abs(change) * 100).toFixed(2)}%`, color: color };
+        };
+
+        const updateDashboard = () => {
+            const selectedYear = yearSelect.value;
+            const selectedMonthIndex = monthSelect.value;
+            
+            if (!selectedYear || selectedMonthIndex === '') {
+                dashboardContent.classList.add('hidden');
+                return;
+            }
+
+            const currentData = groupedData[selectedYear][selectedMonthIndex];
+            
+            // Update KPIs
+            document.getElementById('kpi-sessions').textContent = currentData.sessions.toLocaleString();
+            document.getElementById('kpi-checkouts').textContent = currentData.sessions_that_completed_checkout.toLocaleString();
+            // --- UPDATED: Multiply by 100 to show as a percentage (e.g., 2.00% instead of 0.02%)
+            document.getElementById('kpi-conversion-rate').textContent = `${(currentData.conversion_rate * 100).toFixed(2)}%`;
+
+            // Update Trend Indicators
+            const previousMonthIndex = parseInt(selectedMonthIndex) - 1;
+            const previousYear = parseInt(selectedYear) - 1;
+
+            const previousMonthData = groupedData[selectedYear][previousMonthIndex];
+            const previousYearData = groupedData[previousYear] ? groupedData[previousYear][selectedMonthIndex] : null;
+
+            // Month-over-Month Trends
+            const trendMoMSessions = previousMonthData ? getTrendValue(currentData.sessions, previousMonthData.sessions) : null;
+            const trendMoMCheckouts = previousMonthData ? getTrendValue(currentData.sessions_that_completed_checkout, previousMonthData.sessions_that_completed_checkout) : null;
+            const trendMoMConversion = previousMonthData ? getTrendValue(currentData.conversion_rate, previousMonthData.conversion_rate) : null;
+
+            document.getElementById('trend-mom-sessions').innerHTML = trendMoMSessions ? `<span class="${trendMoMSessions.color}">${trendMoMSessions.text}</span> vs. Prior Month` : '—';
+            document.getElementById('trend-mom-checkouts').innerHTML = trendMoMCheckouts ? `<span class="${trendMoMCheckouts.color}">${trendMoMCheckouts.text}</span> vs. Prior Month` : '—';
+            document.getElementById('trend-mom-conversion-rate').innerHTML = trendMoMConversion ? `<span class="${trendMoMConversion.color}">${trendMoMConversion.text}</span> vs. Prior Month` : '—';
+
+            // Year-over-Year Trends
+            const trendYoYSessions = previousYearData ? getTrendValue(currentData.sessions, previousYearData.sessions) : null;
+            const trendYoYCheckouts = previousYearData ? getTrendValue(currentData.sessions_that_completed_checkout, previousYearData.sessions_that_completed_checkout) : null;
+            const trendYoYConversion = previousYearData ? getTrendValue(currentData.conversion_rate, previousYearData.conversion_rate) : null;
+            
+            document.getElementById('trend-yoy-sessions').innerHTML = trendYoYSessions ? `<span class="${trendYoYSessions.color}">${trendYoYSessions.text}</span> vs. Prior Year` : '—';
+            document.getElementById('trend-yoy-checkouts').innerHTML = trendYoYCheckouts ? `<span class="${trendYoYCheckouts.color}">${trendYoYCheckouts.text}</span> vs. Prior Year` : '—';
+            document.getElementById('trend-yoy-conversion-rate').innerHTML = trendYoYConversion ? `<span class="${trendYoYConversion.color}">${trendYoYConversion.text}</span> vs. Prior Year` : '—';
+
+            document.getElementById('funnel-chart-title').textContent = `Conversion Funnel Breakdown - ${monthNames[selectedMonthIndex]} ${selectedYear}`;
+            document.getElementById('time-chart-title').textContent = `Conversion Rate Over Time - ${selectedYear}`;
+
+            // --- FUNNEL STEP BREAKDOWN LOGIC ---
+            document.getElementById('current-year-header').textContent = `${selectedYear}`;
+            document.getElementById('prior-year-header').textContent = `${previousYear}`;
+            
+            // Current Year Calculations
+            const sessionsToCartRate = currentData.sessions > 0 ? (currentData.sessions_with_cart_additions / currentData.sessions) * 100 : 0;
+            const cartToCheckoutRate = currentData.sessions_with_cart_additions > 0 ? (currentData.sessions_that_reached_checkout / currentData.sessions_with_cart_additions) * 100 : 0;
+            const checkoutToPurchaseRate = currentData.sessions_that_reached_checkout > 0 ? (currentData.sessions_that_completed_checkout / currentData.sessions_that_reached_checkout) * 100 : 0;
+            
+            document.getElementById('step-sessions-to-cart').textContent = `${sessionsToCartRate.toFixed(2)}%`;
+            document.getElementById('step-cart-to-checkout').textContent = `${cartToCheckoutRate.toFixed(2)}%`;
+            document.getElementById('step-checkout-to-purchase').textContent = `${checkoutToPurchaseRate.toFixed(2)}%`;
+            // --- UPDATED: Multiply by 100 to show as a percentage
+            document.getElementById('conversion-rate-current-year').textContent = `${(currentData.conversion_rate * 100).toFixed(2)}%`;
+
+            // Prior Year Calculations
+            if (previousYearData) {
+                const priorYearSessionsToCartRate = previousYearData.sessions > 0 ? (previousYearData.sessions_with_cart_additions / previousYearData.sessions) * 100 : 0;
+                const priorYearCartToCheckoutRate = previousYearData.sessions_with_cart_additions > 0 ? (previousYearData.sessions_that_reached_checkout / previousYearData.sessions_with_cart_additions) * 100 : 0;
+                const priorYearCheckoutToPurchaseRate = previousYearData.sessions_that_reached_checkout > 0 ? (previousYearData.sessions_that_completed_checkout / previousYearData.sessions_that_reached_checkout) * 100 : 0;
+
+                document.getElementById('step-sessions-to-cart-prior-year').textContent = `${priorYearSessionsToCartRate.toFixed(2)}%`;
+                document.getElementById('step-cart-to-checkout-prior-year').textContent = `${priorYearCartToCheckoutRate.toFixed(2)}%`;
+                document.getElementById('step-checkout-to-purchase-prior-year').textContent = `${priorYearCheckoutToPurchaseRate.toFixed(2)}%`;
+                // --- UPDATED: Multiply by 100 to show as a percentage
+                document.getElementById('conversion-rate-prior-year').textContent = `${(previousYearData.conversion_rate * 100).toFixed(2)}%`;
+            } else {
+                document.getElementById('step-sessions-to-cart-prior-year').textContent = '—';
+                document.getElementById('step-cart-to-checkout-prior-year').textContent = '—';
+                document.getElementById('step-checkout-to-purchase-prior-year').textContent = '—';
+                document.getElementById('conversion-rate-prior-year').textContent = '—';
+            }
+            // --- END FUNNEL STEP BREAKDOWN LOGIC ---
+
+            updateFunnelChart(currentData);
+            updateTimeChart(groupedData[selectedYear]);
+
+            dashboardContent.classList.remove('hidden');
+        };
+
+        const updateFunnelChart = (data) => {
+            if (funnelChart) funnelChart.destroy();
+
+            const labels = ['Sessions', 'Added to Cart', 'Reached Checkout', 'Completed Checkout'];
+            const counts = [
+                data.sessions,
+                data.sessions_with_cart_additions,
+                data.sessions_that_reached_checkout,
+                data.sessions_that_completed_checkout
+            ];
+            const maxVal = Math.max(...counts);
+            const gaps = counts.map(c => (maxVal - c) / 2);
+            
+            const wrappedLabels = labels.map(label => wrapLabel(label, 16));
+
+            const ctx = document.getElementById('funnelChart').getContext('2d');
+            funnelChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: wrappedLabels,
+                    datasets: [{
+                        label: 'Users',
+                        data: counts,
+                        backgroundColor: brilliantBlues[1],
+                        barPercentage: 1.0,
+                        categoryPercentage: 1.0,
+                    }, {
+                        label: 'Left Padding',
+                        data: gaps,
+                        backgroundColor: 'rgba(0, 0, 0, 0)',
+                        barPercentage: 1.0,
+                        categoryPercentage: 1.0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            stacked: true,
+                            display: false,
+                        },
+                        y: {
+                            stacked: true,
+                            ticks: { color: '#003F5C' },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: tooltipTitleCallback,
+                                label: function(context) {
+                                    if (context.dataset.label === 'Users') {
+                                        let label = context.chart.data.labels[context.dataIndex];
+                                        if (Array.isArray(label)) label = label.join(' ');
+                                        return `${label}: ${context.parsed.x.toLocaleString()}`;
+                                    }
+                                    return null;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        const updateTimeChart = (dataForYear) => {
+            if (timeChart) timeChart.destroy();
+            const ctx = document.getElementById('timeChart').getContext('2d');
+            
+            const sortedMonths = Object.keys(dataForYear).sort((a, b) => a - b);
+            const labels = sortedMonths.map(monthIndex => monthNames[monthIndex]);
+            const chartData = sortedMonths.map(monthIndex => dataForYear[monthIndex].conversion_rate);
+
+            timeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Conversion Rate',
+                        data: chartData,
+                        borderColor: brilliantBlues[0],
+                        backgroundColor: 'rgba(0, 63, 92, 0.2)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { color: '#003F5C' },
+                            grid: { color: '#A7D1E3' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#003F5C', callback: (value) => `${(value * 100).toFixed(2)}%` },
+                            grid: { color: '#A7D1E3' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: tooltipTitleCallback,
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += `${(context.parsed.y * 100).toFixed(2)}%`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            fileStatus.textContent = `Processing file: ${file.name}...`;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    rawData = processCSV(event.target.result);
+                    groupedData = groupDataByYearAndMonth(rawData);
+                    populateDropdowns(groupedData);
+                    updateDashboard();
+                    fileStatus.textContent = `Successfully loaded ${rawData.length} rows from ${file.name}.`;
+                } catch (error) {
+                    fileStatus.textContent = `Error processing file: ${error.message}`;
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        yearSelect.addEventListener('change', () => {
+            const selectedYear = yearSelect.value;
+            if (groupedData[selectedYear]) {
+                monthSelect.innerHTML = '';
+                const months = Object.keys(groupedData[selectedYear]).sort((a, b) => a - b);
+                months.forEach(monthIndex => {
+                    const option = document.createElement('option');
+                    option.value = monthIndex;
+                    option.textContent = monthNames[monthIndex];
+                    monthSelect.appendChild(option);
+                });
+                updateDashboard();
+            }
+        });
+
+        monthSelect.addEventListener('change', updateDashboard);
+        
+    </script>
+</body>
+</html>
