@@ -61,11 +61,39 @@
         .funnel-step-item:last-child {
             border-bottom: none;
         }
+        .btn-primary {
+            background-color: #003F5C;
+            color: #E1F3FF;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-primary:hover {
+            background-color: #366E8A;
+        }
+        .btn-secondary {
+            background-color: #A7D1E3;
+            color: #003F5C;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-secondary:hover {
+            background-color: #6B9DB3;
+        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
     <div class="container mx-auto p-4 sm:p-8">
 
+        <nav class="mb-8">
+            <a href="index.html" class="btn-secondary">
+                ← Home
+            </a>
+        </nav>
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Interactive Funnel Dashboard</h1>
             <p class="text-lg text-gray-600 max-w-3xl mx-auto">Upload your CSV data to visualize your conversion funnel and identify drop-off points.</p>
@@ -81,7 +109,6 @@
                     file:bg-[#A7D1E3] file:text-[#003F5C]
                     hover:file:bg-[#6B9DB3]">
             </div>
-            <!-- Updated file status message to reflect new column handling -->
             <p id="file-status" class="text-sm text-gray-500">Please upload a CSV file with columns: `Year`, `Month`, `total_sessions`, `total_carts`, `total_checkouts`, `total_orders_placed`, and `total_conversion Rate`.</p>
         </section>
 
@@ -194,7 +221,6 @@
         const currentPeriodHeader = document.getElementById('current-period-header');
         const priorPeriodHeader = document.getElementById('prior-period-header');
         
-        // Mapping for flexible column headers
         const columnMapping = {
             'year': ['Year'],
             'month': ['Month'],
@@ -231,7 +257,6 @@
             return label;
         };
         
-        // Helper function to find a matching header
         const findHeader = (headers, possibleNames) => {
             for (const name of possibleNames) {
                 const foundHeader = headers.find(h => h.toLowerCase().replace(/_/g, ' ') === name.toLowerCase().replace(/_/g, ' '));
@@ -398,16 +423,13 @@
                 return;
             }
 
-            // Update KPI and trends section
             document.getElementById('kpi-sessions').textContent = currentData.sessions.toLocaleString();
             document.getElementById('kpi-checkouts').textContent = currentData.sessions_that_completed_checkout.toLocaleString();
             document.getElementById('kpi-conversion-rate').textContent = `${(currentData.conversion_rate * 100).toFixed(2)}%`;
 
-            // Update Trend Indicators
             const previousMonthIndex = parseInt(selectedMonthIndex) - 1;
             const previousMonthData = selectedMonthIndex !== 'all' && groupedData[selectedYear] ? groupedData[selectedYear][previousMonthIndex] : null;
 
-            // Month-over-Month Trends (only for single month view)
             const trendMoMSessions = previousMonthData ? getTrendValue(currentData.sessions, previousMonthData.sessions) : null;
             const trendMoMCheckouts = previousMonthData ? getTrendValue(currentData.sessions_that_completed_checkout, previousMonthData.sessions_that_completed_checkout) : null;
             const trendMoMConversion = previousMonthData ? getTrendValue(currentData.conversion_rate, previousMonthData.conversion_rate) : null;
@@ -416,7 +438,6 @@
             document.getElementById('trend-mom-checkouts').innerHTML = trendMoMCheckouts ? `<span class="${trendMoMCheckouts.color}">${trendMoMCheckouts.text}</span> vs. Prior Month` : '—';
             document.getElementById('trend-mom-conversion-rate').innerHTML = trendMoMConversion ? `<span class="${trendMoMConversion.color}">${trendMoMConversion.text}</span> vs. Prior Month` : '—';
 
-            // Year-over-Year Trends
             const trendYoYSessions = priorPeriodData ? getTrendValue(currentData.sessions, priorPeriodData.sessions) : null;
             const trendYoYCheckouts = priorPeriodData ? getTrendValue(currentData.sessions_that_completed_checkout, priorPeriodData.sessions_that_completed_checkout) : null;
             const trendYoYConversion = priorPeriodData ? getTrendValue(currentData.conversion_rate, priorPeriodData.conversion_rate) : null;
@@ -428,7 +449,6 @@
             document.getElementById('funnel-chart-title').textContent = `Conversion Funnel Breakdown - ${currentPeriodLabel}`;
             document.getElementById('time-chart-title').textContent = `Conversion Rate Over Time - ${selectedYear}`;
 
-            // --- FUNNEL STEP BREAKDOWN LOGIC ---
             currentPeriodHeader.textContent = currentPeriodLabel;
             priorPeriodHeader.textContent = priorPeriodLabel;
 
@@ -440,7 +460,6 @@
             const stepCheckoutToPurchaseCurrent = document.getElementById('step-checkout-to-purchase-current-period');
             const conversionRateCurrent = document.getElementById('conversion-rate-current-period');
             
-            // Current Period Calculations
             const sessionsToCartRate = currentData.sessions > 0 ? (currentData.sessions_with_cart_additions / currentData.sessions) * 100 : 0;
             const cartToCheckoutRate = currentData.sessions_with_cart_additions > 0 ? (currentData.sessions_that_reached_checkout / currentData.sessions_with_cart_additions) * 100 : 0;
             const checkoutToPurchaseRate = currentData.sessions_that_reached_checkout > 0 ? (currentData.sessions_that_completed_checkout / currentData.sessions_that_reached_checkout) * 100 : 0;
@@ -450,7 +469,6 @@
             stepCheckoutToPurchaseCurrent.textContent = `${currentData.sessions_that_completed_checkout.toLocaleString()} (${checkoutToPurchaseRate.toFixed(2)}%)`;
             conversionRateCurrent.textContent = `${(currentData.conversion_rate * 100).toFixed(2)}%`;
 
-            // Prior Period Calculations and color coding
             const stepSessionsToCartPrior = document.getElementById('step-sessions-to-cart-prior-period');
             const stepCartToCheckoutPrior = document.getElementById('step-cart-to-checkout-prior-period');
             const stepCheckoutToPurchasePrior = document.getElementById('step-checkout-to-purchase-prior-period');
@@ -466,7 +484,6 @@
                 stepCheckoutToPurchasePrior.textContent = `${priorPeriodData.sessions_that_completed_checkout.toLocaleString()} (${priorPeriodCheckoutToPurchaseRate.toFixed(2)}%)`;
                 conversionRatePrior.textContent = `${(priorPeriodData.conversion_rate * 100).toFixed(2)}%`;
                 
-                // Add color class to CURRENT period's performance
                 stepSessionsToCartCurrent.className = `text-lg font-bold text-right ${getTrendClass(sessionsToCartRate, priorPeriodSessionsToCartRate)}`;
                 stepCartToCheckoutCurrent.className = `text-lg font-bold text-right ${getTrendClass(cartToCheckoutRate, priorPeriodCartToCheckoutRate)}`;
                 stepCheckoutToPurchaseCurrent.className = `text-lg font-bold text-right ${getTrendClass(checkoutToPurchaseRate, priorPeriodCheckoutToPurchaseRate)}`;
@@ -478,17 +495,13 @@
                 stepCheckoutToPurchasePrior.textContent = '—';
                 conversionRatePrior.textContent = '—';
                 
-                // Reset classes if no data
                 stepSessionsToCartCurrent.className = 'text-lg font-bold text-[#366E8A] text-right';
                 stepCartToCheckoutCurrent.className = 'text-lg font-bold text-[#366E8A] text-right';
                 stepCheckoutToPurchaseCurrent.className = 'text-lg font-bold text-[#366E8A] text-right';
                 conversionRateCurrent.className = 'text-lg font-bold text-[#366E8A] text-right';
             }
-            // --- END FUNNEL STEP BREAKDOWN LOGIC ---
-
             updateFunnelChart(currentData);
             if (selectedMonthIndex === 'all') {
-                // For "All" option, show a bar chart of monthly conversion rates for the year
                 updateTimeChartForYear(groupedData[selectedYear]);
             } else {
                 updateTimeChart(groupedData[selectedYear]);
@@ -722,8 +735,5 @@
         });
         monthSelect.addEventListener('change', updateDashboard);
     </script>
-</body>
-</html>
-
 </body>
 </html>
