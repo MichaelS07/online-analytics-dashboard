@@ -1,4 +1,3 @@
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -82,7 +81,8 @@
                     file:bg-[#A7D1E3] file:text-[#003F5C]
                     hover:file:bg-[#6B9DB3]">
             </div>
-            <p id="file-status" class="text-sm text-gray-500">Please upload a CSV file with columns: `month`, `sessions`, `Sessions with cart additions`, `Sessions that reached checkout`, `Sessions that completed checkout`, `Conversion rate`.</p>
+            <!-- Updated file status message to reflect new column handling -->
+            <p id="file-status" class="text-sm text-gray-500">Please upload a CSV file with columns: `Year`, `Month`, `total_sessions`, `total_carts`, `total_checkouts`, `total_orders_placed`, and `total_conversion Rate`.</p>
         </section>
 
         <section id="dashboard-content" class="hidden">
@@ -196,12 +196,13 @@
         
         // Mapping for flexible column headers
         const columnMapping = {
-            'month': ['month', 'date', 'period'],
+            'year': ['Year'],
+            'month': ['Month'],
             'sessions': ['sessions', 'visits', 'total_sessions'],
-            'sessions_with_cart_additions': ['sessions with cart additions', 'add to cart', 'cart additions'],
-            'sessions_that_reached_checkout': ['sessions that reached checkout', 'reached checkout', 'checkout initiated'],
-            'sessions_that_completed_checkout': ['sessions that completed checkout', 'completed checkout', 'conversions'],
-            'conversion_rate': ['conversion rate', 'cr', 'total conversion rate']
+            'sessions_with_cart_additions': ['sessions with cart additions', 'add to cart', 'cart additions', 'total_carts'],
+            'sessions_that_reached_checkout': ['sessions that reached checkout', 'reached checkout', 'checkout initiated', 'total_checkouts'],
+            'sessions_that_completed_checkout': ['sessions that completed checkout', 'completed checkout', 'conversions', 'total_orders_placed'],
+            'conversion_rate': ['conversion rate', 'cr', 'total conversion rate', 'total_conversion Rate']
         };
 
         function wrapLabel(label, maxWidth) {
@@ -233,7 +234,7 @@
         // Helper function to find a matching header
         const findHeader = (headers, possibleNames) => {
             for (const name of possibleNames) {
-                const foundHeader = headers.find(h => h.toLowerCase() === name.toLowerCase());
+                const foundHeader = headers.find(h => h.toLowerCase().replace(/_/g, ' ') === name.toLowerCase().replace(/_/g, ' '));
                 if (foundHeader) {
                     return foundHeader;
                 }
@@ -270,11 +271,37 @@
         const groupDataByYearAndMonth = (data) => {
             const grouped = {};
             data.forEach(item => {
-                const [day, month, year] = item.month.split('/').map(Number);
+                const year = item.year;
+                const monthName = item.month;
+                const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(monthName.toLowerCase()));
+
+                if (isNaN(year) || monthIndex === -1) {
+                    console.error('Invalid date format detected in row:', item.month, item.year);
+                    return; 
+                }
+                
                 if (!grouped[year]) {
                     grouped[year] = {};
                 }
-                grouped[year][month - 1] = item;
+                if (!grouped[year][monthIndex]) {
+                    grouped[year][monthIndex] = {
+                        sessions: 0,
+                        sessions_with_cart_additions: 0,
+                        sessions_that_reached_checkout: 0,
+                        sessions_that_completed_checkout: 0,
+                        conversion_rate: 0
+                    };
+                }
+
+                const aggregatedData = grouped[year][monthIndex];
+                aggregatedData.sessions += item.sessions;
+                aggregatedData.sessions_with_cart_additions += item.sessions_with_cart_additions;
+                aggregatedData.sessions_that_reached_checkout += item.sessions_that_reached_checkout;
+                aggregatedData.sessions_that_completed_checkout += item.sessions_that_completed_checkout;
+                
+                aggregatedData.conversion_rate = aggregatedData.sessions > 0 
+                    ? aggregatedData.sessions_that_completed_checkout / aggregatedData.sessions 
+                    : 0;
             });
             return grouped;
         };
@@ -313,7 +340,6 @@
             
             const selectedYear = yearSelect.value;
             if (selectedYear) {
-                // Add "All" option first
                 const allOption = document.createElement('option');
                 allOption.value = 'all';
                 allOption.textContent = 'All';
@@ -462,7 +488,7 @@
 
             updateFunnelChart(currentData);
             if (selectedMonthIndex === 'all') {
-                 // For "All" option, show a bar chart of monthly conversion rates for the year
+                // For "All" option, show a bar chart of monthly conversion rates for the year
                 updateTimeChartForYear(groupedData[selectedYear]);
             } else {
                 updateTimeChart(groupedData[selectedYear]);
@@ -586,14 +612,7 @@
                             callbacks: {
                                 title: tooltipTitleCallback,
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += `${(context.parsed.y * 100).toFixed(2)}%`;
-                                    }
-                                    return label;
+                                    return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(2)}%`;
                                 }
                             }
                         }
@@ -601,7 +620,7 @@
                 }
             });
         };
-
+        
         const updateTimeChartForYear = (dataForYear) => {
             if (timeChart) timeChart.destroy();
             const ctx = document.getElementById('timeChart').getContext('2d');
@@ -609,29 +628,34 @@
             const sortedMonths = Object.keys(dataForYear).sort((a, b) => a - b);
             const labels = sortedMonths.map(monthIndex => monthNames[monthIndex]);
             const chartData = sortedMonths.map(monthIndex => dataForYear[monthIndex].conversion_rate);
-
+            
             timeChart = new Chart(ctx, {
-                type: 'bar', // Using a bar chart for monthly breakdown in the "All" view
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Conversion Rate',
+                        label: 'Monthly Conversion Rate',
                         data: chartData,
-                        backgroundColor: brilliantBlues[2],
+                        backgroundColor: brilliantBlues,
+                        borderColor: brilliantBlues[0],
+                        borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: {
-                            ticks: { color: '#003F5C' },
-                            grid: { color: '#A7D1E3' }
-                        },
                         y: {
                             beginAtZero: true,
-                            ticks: { color: '#003F5C', callback: (value) => `${(value * 100).toFixed(2)}%` },
-                            grid: { color: '#A7D1E3' }
+                            ticks: {
+                                callback: function(value) {
+                                    return `${(value * 100).toFixed(2)}%`;
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Conversion Rate'
+                            }
                         }
                     },
                     plugins: {
@@ -640,14 +664,13 @@
                         },
                         tooltip: {
                             callbacks: {
-                                title: tooltipTitleCallback,
                                 label: function(context) {
                                     let label = context.dataset.label || '';
                                     if (label) {
                                         label += ': ';
                                     }
                                     if (context.parsed.y !== null) {
-                                        label += `${(context.parsed.y * 100).toFixed(2)}%`;
+                                        label += (context.parsed.y * 100).toFixed(2) + '%';
                                     }
                                     return label;
                                 }
@@ -658,49 +681,49 @@
             });
         };
 
-        fileInput.addEventListener('change', (e) => {
+        const handleFile = (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            fileStatus.textContent = `Processing file: ${file.name}...`;
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = function(event) {
                 try {
                     rawData = processCSV(event.target.result);
                     groupedData = groupDataByYearAndMonth(rawData);
+                    
+                    if (Object.keys(groupedData).length === 0) {
+                         fileStatus.textContent = 'Error: No valid data could be processed from the CSV.';
+                         fileStatus.classList.remove('text-gray-500');
+                         fileStatus.classList.add('text-red-500');
+                         dashboardContent.classList.add('hidden');
+                         return;
+                    }
+
                     populateDropdowns(groupedData);
                     updateDashboard();
-                    fileStatus.textContent = `Successfully loaded ${rawData.length} rows from ${file.name}.`;
+                    fileStatus.textContent = `File "${file.name}" loaded successfully.`;
+                    fileStatus.classList.remove('text-red-500');
+                    fileStatus.classList.add('text-green-500');
                 } catch (error) {
-                    fileStatus.textContent = `Error processing file: ${error.message}`;
                     console.error(error);
+                    fileStatus.textContent = `Error: ${error.message}`;
+                    fileStatus.classList.remove('text-gray-500');
+                    fileStatus.classList.add('text-red-500');
+                    dashboardContent.classList.add('hidden');
                 }
             };
             reader.readAsText(file);
-        });
+        };
 
+        fileInput.addEventListener('change', handleFile);
         yearSelect.addEventListener('change', () => {
-            const selectedYear = yearSelect.value;
-            if (groupedData[selectedYear]) {
-                monthSelect.innerHTML = '';
-                const allOption = document.createElement('option');
-                allOption.value = 'all';
-                allOption.textContent = 'All';
-                monthSelect.appendChild(allOption);
-                
-                const months = Object.keys(groupedData[selectedYear]).sort((a, b) => a - b);
-                months.forEach(monthIndex => {
-                    const option = document.createElement('option');
-                    option.value = monthIndex;
-                    option.textContent = monthNames[monthIndex];
-                    monthSelect.appendChild(option);
-                });
-                updateDashboard();
-            }
+            populateDropdowns(groupedData);
+            updateDashboard();
         });
-
         monthSelect.addEventListener('change', updateDashboard);
-        
     </script>
+</body>
+</html>
+
 </body>
 </html>
