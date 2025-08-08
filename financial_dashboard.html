@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Performance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            color: #334155;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border-left: 6px solid #6366f1; /* Indigo color for a distinct look */
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        .date-input-group label {
+            font-weight: 600;
+            color: #1e293b;
+            margin-right: 0.5rem;
+        }
+        .date-input-group input[type="date"] {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            background-color: #f8fafc;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .date-input-group input[type="date"]:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+        .preset-select {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            background-color: #f8fafc;
+            color: #1e293b;
+            cursor: pointer;
+            font-size: 0.875rem; /* Smaller font for better fit */
+        }
+        .preset-select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto p-4 sm:p-8">
+
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Financial Performance Dashboard</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">Upload your data to visualize key financial metrics for any date range you select.</p>
+        </header>
+
+        <!-- Data Input Section -->
+        <section id="data-input" class="card !border-l-indigo-400">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                <label for="csv-upload" class="block text-xl font-semibold mb-2 md:mb-0 text-gray-900">Upload Your CSV Financial Data</label>
+                <input type="file" id="csv-upload" accept=".csv" class="cursor-pointer text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-indigo-100 file:text-indigo-700
+                    hover:file:bg-indigo-200">
+            </div>
+            <p id="file-status" class="text-sm text-gray-500">
+                Please upload a CSV file with columns like: `net_sales`, `gross_sales`, `aov`, and a date column.
+            </p>
+        </section>
+
+        <!-- Dashboard Content Section (initially hidden) -->
+        <section id="dashboard-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
+                <h2 class="text-3xl font-bold text-gray-900">Selected Period Overview</h2>
+                <div class="flex flex-wrap items-center justify-center sm:justify-end gap-4">
+                    <!-- Date Presets Dropdown -->
+                    <select id="date-presets" class="preset-select">
+                        <option value="custom">Custom Range</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="last-7-days">Last 7 Days</option>
+                        <option value="last-30-days">Last 30 Days</option>
+                        <option value="last-90-days">Last 90 Days</option>
+                        <option value="last-365-days">Last 365 Days</option>
+                        <option value="last-12-months">Last 12 Months</option>
+                        <option value="last-week">Last Week</option>
+                        <option value="last-month">Last Month</option>
+                        <option value="last-quarter">Last Quarter</option>
+                        <option value="last-year">Last Year</option>
+                        <option value="week-to-date">Week to Date</option>
+                        <option value="month-to-date">Month to Date</option>
+                        <option value="quarter-to-date">Quarter to Date</option>
+                        <option value="year-to-date">Year to Date</option>
+                    </select>
+                    <div class="date-input-group">
+                        <label for="start-date">From:</label>
+                        <input type="date" id="start-date" class="w-auto">
+                    </div>
+                    <div class="date-input-group">
+                        <label for="end-date">To:</label>
+                        <input type="date" id="end-date" class="w-auto">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message for date range selection -->
+            <div id="date-range-message" class="text-center text-lg text-gray-600 my-8 hidden">
+                <p>Please select a valid date range to view the dashboard data.</p>
+            </div>
+
+            <!-- KPI Cards -->
+            <div id="kpi-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 hidden">
+                <div class="card">
+                    <h3 class="text-xl font-semibold text-gray-700">Total Net Sales</h3>
+                    <p id="kpi-net-sales" class="text-3xl font-bold mt-2 text-indigo-600">$0.00</p>
+                    <p id="net-sales-trend" class="text-sm mt-2 font-semibold">vs. Prior Period: <span class="text-gray-500">---</span></p>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-semibold text-gray-700">Total Gross Sales</h3>
+                    <p id="kpi-gross-sales" class="text-3xl font-bold mt-2 text-indigo-600">$0.00</p>
+                    <p id="gross-sales-trend" class="text-sm mt-2 font-semibold">vs. Prior Period: <span class="text-gray-500">---</span></p>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-semibold text-gray-700">Average Order Value (AOV)</h3>
+                    <p id="kpi-aov" class="text-3xl font-bold mt-2 text-indigo-600">$0.00</p>
+                    <p id="aov-trend" class="text-sm mt-2 font-semibold">vs. Prior Period: <span class="text-gray-500">---</span></p>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div id="charts-section" class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 hidden">
+                <div class="card col-span-1 lg:col-span-2">
+                    <h3 id="sales-chart-title" class="text-xl font-semibold text-center mb-4 text-gray-900">Sales Trend</h3>
+                    <div class="chart-container">
+                        <canvas id="salesTrendChart"></canvas>
+                    </div>
+                </div>
+                <div class="card col-span-1">
+                    <h3 class="text-xl font-semibold text-center mb-4 text-gray-900">Average Order Value Comparison</h3>
+                    <div class="chart-container">
+                        <canvas id="aovComparisonChart"></canvas>
+                    </div>
+                </div>
+                <div class="card col-span-1">
+                    <h3 class="text-xl font-semibold text-center mb-4 text-gray-900">Discounts & Returns Over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="discountsReturnsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+    <script>
+        // Define colors for the charts
+        const chartColors = {
+            indigo: '#6366f1',
+            blue: '#3b82f6',
+            gray: '#d1d5db',
+            red: '#ef4444',
+            green: '#22c55e',
+        };
+
+        // Global variables to hold data and chart instances
+        let rawData = [];
+        let salesTrendChart, aovComparisonChart, discountsReturnsChart;
+
+        // Element references
+        const fileInput = document.getElementById('csv-upload');
+        const fileStatus = document.getElementById('file-status');
+        const dashboardContent = document.getElementById('dashboard-content');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const datePresetsSelect = document.getElementById('date-presets');
+        const dateRangeMessage = document.getElementById('date-range-message');
+        const kpiCards = document.getElementById('kpi-cards');
+        const chartsSection = document.getElementById('charts-section');
+
+        // Helper function for number formatting with commas and a dollar sign.
+        const formatCurrency = (number) => {
+            if (typeof number !== 'number' || isNaN(number)) {
+                return '$0.00';
+            }
+            const formatter = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            return formatter.format(number);
+        };
+        
+        // Flexible column mapping for CSV headers
+        const columnMapping = {
+            'date': ['date', 'Date', 'DATE'],
+            'net_sales': ['net_sales', 'net sales', 'NET_SALES', 'total_sales'],
+            'gross_sales': ['gross_sales', 'gross sales', 'GROSS_SALES'],
+            'discounts': ['discounts', 'DISCOUNTS', 'discount', 'DISCOUNT'],
+            'returns': ['returns', 'RETURNS', 'return', 'RETURN'],
+            'aov': ['aov', 'AOV', 'average_order_value', 'revenue_per_order']
+        };
+
+        // Main function to parse the CSV file
+        const processCSV = (text) => {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const lowerCaseHeaders = headers.map(h => h.toLowerCase());
+        
+            const matchedHeaderIndices = {};
+            for (const key in columnMapping) {
+                let foundIndex = -1;
+                for (const possibleName of columnMapping[key]) {
+                    foundIndex = lowerCaseHeaders.indexOf(possibleName.toLowerCase());
+                    if (foundIndex > -1) {
+                        matchedHeaderIndices[key] = foundIndex;
+                        break;
+                    }
+                }
+                if (foundIndex === -1 && key !== 'net_sales') {
+                    throw new Error(`Missing required column for '${key}'. Please check your CSV file.`);
+                }
+            }
+        
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                const item = {};
+                
+                // Parse the date with a check for Excel serial number format
+                const dateIndex = matchedHeaderIndices['date'];
+                const dateValue = values[dateIndex];
+                if (!isNaN(dateValue) && !isNaN(parseFloat(dateValue))) {
+                    const excelDate = parseFloat(dateValue);
+                    const baseDate = new Date(Date.UTC(1899, 11, 30));
+                    item.date = new Date(baseDate.getTime() + excelDate * 24 * 60 * 60 * 1000);
+                } else {
+                    item.date = new Date(dateValue);
+                }
+
+                // Check for valid date before proceeding
+                if (isNaN(item.date.getTime())) {
+                    return null;
+                }
+        
+                const parseNumeric = (value) => {
+                    const cleanedValue = value.replace(/[$,\s]/g, '');
+                    return parseFloat(cleanedValue) || 0;
+                };
+                
+                // Get gross sales, discounts, returns, and aov using their correct indices
+                item.gross_sales = parseNumeric(values[matchedHeaderIndices['gross_sales']]);
+                item.discounts = parseNumeric(values[matchedHeaderIndices['discounts']]);
+                item.returns = parseNumeric(values[matchedHeaderIndices['returns']]);
+                item.aov = parseNumeric(values[matchedHeaderIndices['aov']]);
+        
+                // Calculate net sales from the other columns for a consistent calculation
+                item.net_sales = item.gross_sales - item.discounts - item.returns;
+        
+                return item;
+            }).filter(item => item !== null);
+        
+            return data;
+        };
+
+        // Helper function to filter and aggregate data based on a date range
+        const getAggregatedDataForDateRange = (data, startDate, endDate) => {
+            const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+            const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+            
+            const filteredData = data.filter(item => {
+                const itemDate = new Date(item.date.getFullYear(), item.date.getMonth(), item.date.getDate());
+                return itemDate >= start && itemDate <= end;
+            });
+
+            const dailyData = {};
+            let totalAovSum = 0;
+            let totalAovCount = 0;
+            
+            let totalNetSales = 0;
+            let totalGrossSales = 0;
+            let totalDiscounts = 0;
+            let totalReturns = 0;
+
+            filteredData.forEach(item => {
+                const dateStr = item.date.toISOString().split('T')[0];
+                if (!dailyData[dateStr]) {
+                    dailyData[dateStr] = {
+                        date: dateStr,
+                        net_sales: 0,
+                        gross_sales: 0,
+                        discounts: 0,
+                        returns: 0,
+                    };
+                }
+                dailyData[dateStr].net_sales += item.net_sales;
+                dailyData[dateStr].gross_sales += item.gross_sales;
+                dailyData[dateStr].discounts += item.discounts;
+                dailyData[dateStr].returns += item.returns;
+                totalAovSum += item.aov;
+                totalAovCount++;
+                
+                totalNetSales += item.net_sales;
+                totalGrossSales += item.gross_sales;
+                totalDiscounts += item.discounts;
+                totalReturns += item.returns;
+            });
+            
+            const finalAOV = totalAovCount > 0 ? totalAovSum / totalAovCount : 0;
+
+            return {
+                net_sales: totalNetSales,
+                gross_sales: totalGrossSales,
+                discounts: totalDiscounts,
+                returns: totalReturns,
+                aov: finalAOV,
+                dailyData: dailyData
+            };
+        };
+
+        // Update the KPI cards with the current and prior data
+        const updateKPIs = (currentData, priorData) => {
+            document.getElementById('kpi-net-sales').textContent = formatCurrency(currentData.net_sales);
+            document.getElementById('kpi-gross-sales').textContent = formatCurrency(currentData.gross_sales);
+            document.getElementById('kpi-aov').textContent = formatCurrency(currentData.aov);
+            
+            const updateTrend = (elementId, current, prior) => {
+                const element = document.getElementById(elementId);
+                if (!prior || prior === 0) {
+                    element.innerHTML = `vs. Prior Period: <span class="text-gray-500">---</span>`;
+                    return;
+                }
+                const change = (current - prior) / prior;
+                const sign = change >= 0 ? '+' : '';
+                const colorClass = change >= 0 ? 'text-green-500' : 'text-red-500';
+                element.innerHTML = `vs. Prior Period: <span class="${colorClass}">${sign}${(change * 100).toFixed(2)}%</span>`;
+            };
+
+            updateTrend('net-sales-trend', currentData.net_sales, priorData?.net_sales);
+            updateTrend('gross-sales-trend', currentData.gross_sales, priorData?.gross_sales);
+            updateTrend('aov-trend', currentData.aov, priorData?.aov);
+        };
+
+        // Initialize or update the charts
+        const updateCharts = (currentData) => {
+            // Destroy existing charts if they exist
+            if (salesTrendChart) salesTrendChart.destroy();
+            if (aovComparisonChart) aovComparisonChart.destroy();
+            if (discountsReturnsChart) discountsReturnsChart.destroy();
+
+            // Prepare data for charts
+            const dailyData = currentData.dailyData;
+            const sortedDates = Object.keys(dailyData).sort();
+            const labels = sortedDates;
+            
+            // --- Sales Trend Chart ---
+            const netSalesData = sortedDates.map(date => dailyData[date].net_sales);
+            const grossSalesData = sortedDates.map(date => dailyData[date].gross_sales);
+            
+            const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
+            salesTrendChart = new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Net Sales',
+                        data: netSalesData,
+                        borderColor: chartColors.indigo,
+                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                        fill: true,
+                        tension: 0.3
+                    }, {
+                        label: 'Gross Sales',
+                        data: grossSalesData,
+                        borderColor: chartColors.blue,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 15 } },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (value) => formatCurrency(value) 
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- AOV Comparison Chart ---
+            const priorPeriodDuration = new Date(endDateInput.value) - new Date(startDateInput.value);
+            const priorStartDate = new Date(new Date(startDateInput.value).getTime() - priorPeriodDuration);
+            const priorEndDate = new Date(new Date(endDateInput.value).getTime() - priorPeriodDuration);
+            
+            const currentAOV = currentData.aov;
+            const priorDataObj = getAggregatedDataForDateRange(rawData, priorStartDate, priorEndDate);
+            const priorAOV = priorDataObj.aov;
+            
+            const aovLabels = [`Current Period`, `Prior Period`];
+            const aovData = [currentAOV, priorAOV];
+
+            const aovCtx = document.getElementById('aovComparisonChart').getContext('2d');
+            aovComparisonChart = new Chart(aovCtx, {
+                type: 'bar',
+                data: {
+                    labels: aovLabels,
+                    datasets: [{
+                        label: 'Average Order Value',
+                        data: aovData,
+                        backgroundColor: [chartColors.indigo, chartColors.gray],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (value) => formatCurrency(value) 
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Discounts & Returns Chart ---
+            const discountsData = sortedDates.map(date => dailyData[date].discounts);
+            const returnsData = sortedDates.map(date => dailyData[date].returns);
+
+            const drCtx = document.getElementById('discountsReturnsChart').getContext('2d');
+            discountsReturnsChart = new Chart(drCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Discounts',
+                        data: discountsData,
+                        backgroundColor: chartColors.red,
+                    }, {
+                        label: 'Returns',
+                        data: returnsData,
+                        backgroundColor: chartColors.gray,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 15 } },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (value) => formatCurrency(value) 
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // Main function to update all dashboard elements
+        const updateDashboard = () => {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+
+            // Check if data is loaded and dates are valid
+            if (rawData.length > 0 && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && startDate <= endDate) {
+                dateRangeMessage.classList.add('hidden');
+                kpiCards.classList.remove('hidden');
+                chartsSection.classList.remove('hidden');
+                
+                const currentData = getAggregatedDataForDateRange(rawData, startDate, endDate);
+                
+                const priorPeriodDuration = endDate - startDate;
+                const priorStartDate = new Date(startDate.getTime() - priorPeriodDuration);
+                const priorEndDate = new Date(endDate.getTime() - priorPeriodDuration);
+                const priorData = getAggregatedDataForDateRange(rawData, priorStartDate, priorEndDate);
+
+                updateKPIs(currentData, priorData);
+                updateCharts(currentData);
+            } else if (rawData.length > 0) {
+                // If data is loaded but dates are invalid, show a message and hide the dashboard metrics
+                dateRangeMessage.classList.remove('hidden');
+                kpiCards.classList.add('hidden');
+                chartsSection.classList.add('hidden');
+            } else {
+                 // If no data is loaded, hide everything
+                 dashboardContent.classList.add('hidden');
+            }
+        };
+
+        // Function to handle the date preset selection
+        const applyDatePreset = (preset) => {
+            const today = new Date();
+            const startDate = new Date();
+            const endDate = new Date();
+
+            const formatDate = (date) => date.toISOString().split('T')[0];
+
+            switch (preset) {
+                case 'today':
+                    startDateInput.value = formatDate(today);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(today.getDate() - 1);
+                    startDateInput.value = formatDate(yesterday);
+                    endDateInput.value = formatDate(yesterday);
+                    break;
+                case 'last-7-days':
+                    startDate.setDate(today.getDate() - 7);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'last-30-days':
+                    startDate.setDate(today.getDate() - 30);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'last-90-days':
+                    startDate.setDate(today.getDate() - 90);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'last-365-days':
+                    startDate.setDate(today.getDate() - 365);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'last-12-months':
+                    startDate.setFullYear(today.getFullYear() - 1);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'last-week':
+                    const dayOfWeek = today.getDay();
+                    startDate.setDate(today.getDate() - dayOfWeek - 7);
+                    endDate.setDate(today.getDate() - dayOfWeek - 1);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(endDate);
+                    break;
+                case 'last-month':
+                    startDate.setMonth(today.getMonth() - 1);
+                    startDate.setDate(1);
+                    endDate.setMonth(today.getMonth());
+                    endDate.setDate(0);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(endDate);
+                    break;
+                case 'last-quarter':
+                    const currentMonth = today.getMonth();
+                    let quarterStartMonth = 0;
+                    if (currentMonth >= 0 && currentMonth <= 2) quarterStartMonth = 0;
+                    else if (currentMonth >= 3 && currentMonth <= 5) quarterStartMonth = 3;
+                    else if (currentMonth >= 6 && currentMonth <= 8) quarterStartMonth = 6;
+                    else quarterStartMonth = 9;
+
+                    startDate.setMonth(quarterStartMonth - 3);
+                    startDate.setDate(1);
+                    endDate.setMonth(quarterStartMonth);
+                    endDate.setDate(0);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(endDate);
+                    break;
+                case 'last-year':
+                    startDate.setFullYear(today.getFullYear() - 1);
+                    startDate.setMonth(0);
+                    startDate.setDate(1);
+                    endDate.setFullYear(today.getFullYear() - 1);
+                    endDate.setMonth(11);
+                    endDate.setDate(31);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(endDate);
+                    break;
+                case 'week-to-date':
+                    const dayOfWeekWTD = today.getDay();
+                    startDate.setDate(today.getDate() - dayOfWeekWTD);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'month-to-date':
+                    startDate.setDate(1);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'quarter-to-date':
+                    const currentMonthQTD = today.getMonth();
+                    let quarterStartMonthQTD = 0;
+                    if (currentMonthQTD >= 0 && currentMonthQTD <= 2) quarterStartMonthQTD = 0;
+                    else if (currentMonthQTD >= 3 && currentMonthQTD <= 5) quarterStartMonthQTD = 3;
+                    else if (currentMonthQTD >= 6 && currentMonthQTD <= 8) quarterStartMonthQTD = 6;
+                    else quarterStartMonthQTD = 9;
+                    startDate.setMonth(quarterStartMonthQTD);
+                    startDate.setDate(1);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'year-to-date':
+                    startDate.setMonth(0);
+                    startDate.setDate(1);
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(today);
+                    break;
+                case 'custom':
+                    // Do nothing, let the user pick the dates
+                    return;
+            }
+            updateDashboard();
+        };
+
+        // Event listener for file input change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            fileStatus.textContent = `Processing file: ${file.name}...`;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    rawData = processCSV(event.target.result);
+                    const dates = rawData.map(item => item.date).sort((a, b) => a - b);
+                    if (dates.length > 0) {
+                        startDateInput.value = dates[0].toISOString().split('T')[0];
+                        endDateInput.value = dates[dates.length - 1].toISOString().split('T')[0];
+                    }
+                    dashboardContent.classList.remove('hidden');
+                    updateDashboard();
+                    fileStatus.textContent = `Successfully loaded ${rawData.length} rows from ${file.name}.`;
+                } catch (error) {
+                    fileStatus.textContent = `Error processing file: ${error.message}`;
+                    console.error(error);
+                    dashboardContent.classList.add('hidden');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Event listener for date presets dropdown change
+        datePresetsSelect.addEventListener('change', (e) => {
+            const preset = e.target.value;
+            applyDatePreset(preset);
+        });
+
+        // Event listeners for manual date input changes
+        startDateInput.addEventListener('change', () => {
+            datePresetsSelect.value = 'custom';
+            updateDashboard();
+        });
+        endDateInput.addEventListener('change', () => {
+            datePresetsSelect.value = 'custom';
+            updateDashboard();
+        });
+    </script>
+</body>
+</html>
